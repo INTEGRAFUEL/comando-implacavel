@@ -1,4 +1,4 @@
-# COMANDO IN'TEGRA — NÃO PERCA A DIREÇÃO
+# COMANDO IMPLACÁVEL — NÃO PERCA A DIREÇÃO
 Agenda pessoal e privada do Jhony Brianezi (IN'TEGRA Fuel). PWA estática (GitHub Pages) + Supabase `nwcixkllbxmetfcozkwb`.
 Independente do OFFICIUM INEXORABILE (nenhum dado importado, nenhuma tabela antiga tocada).
 
