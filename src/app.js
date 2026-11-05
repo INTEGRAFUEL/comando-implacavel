@@ -1,5 +1,4 @@
 const SB_URL='https://nwcixkllbxmetfcozkwb.supabase.co',SB_KEY='sb_publishable_kZ8Rmo4zBi0undvEfe5GGQ_mAbFdk4B',OWNER='dd3e1b45-230a-48aa-8d7d-01df7cfe9d0a';
-const loginEmail=v=>{v=v.trim();return v.includes('@')?v:(v.toLowerCase()==='jbrianezi'?'brianezi.heritage@gmail.com':v)};
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'comando-integra-auth'}});
 const CATS={dia:'Dia a dia',fuel:'Chamados FUEL',air:'Chamados AIR',b2b:'B2B',pessoas:'Pessoas importantes',potenciais:'Clientes potenciais',rotas:'Rotas importantes'};
 const STS=['ABERTO','EM ANDAMENTO','CONCLUÍDO','CANCELADO'],$=s=>document.querySelector(s);
@@ -16,7 +15,14 @@ async function boot(){const{data:{session}}=await sb.auth.getSession();if(!sessi
  if(session.user.id!==OWNER){await sb.auth.signOut();return showLogin('Acesso restrito.')}
  $('#login').hidden=true;$('#app').hidden=false;await load()}
 function showLogin(msg){$('#app').hidden=true;$('#login').hidden=false;$('#lmsg').textContent=msg||''}
-$('#lf').onsubmit=async e=>{e.preventDefault();$('#lmsg').textContent='Entrando…';const{error}=await sb.auth.signInWithPassword({email:loginEmail($('#le').value),password:$('#lp').value});if(error)return $('#lmsg').textContent='E-mail ou senha inválidos.';boot()};
+$('#lf').onsubmit=async e=>{e.preventDefault();const code=($('#lc').value||'').replace(/\D/g,'');if(!code)return $('#lmsg').textContent='Informe o código.';$('#lmsg').textContent='Entrando…';$('#lf button').disabled=true;
+ try{const r=await fetch(SB_URL+'/functions/v1/cmd-code-login',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({code})});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===429){$('#lmsg').textContent=j.error||'Muitas tentativas. Aguarde.';return}
+  if(!r.ok||!j.token_hash){$('#lmsg').textContent=j.error||'Código inválido.';return}
+  const{error}=await sb.auth.verifyOtp({token_hash:j.token_hash,type:'email'});
+  if(error){$('#lmsg').textContent='Falha ao entrar. Tente de novo.';return}
+  $('#lc').value='';boot()}catch(err){$('#lmsg').textContent='Sem conexão. Tente de novo.'}finally{$('#lf button').disabled=false}};
 $('#out').onclick=async()=>{await sb.auth.signOut();showLogin()};
 async function load(){const[a,b]=await Promise.all([sb.from('cmd_items').select('*'),sb.from('cmd_sugestoes').select('*').eq('status','pendente').order('created_at')]);
  if(a.error||b.error){alert('Erro ao carregar: '+(a.error||b.error).message);return}items=a.data;sugs=b.data;render()}
