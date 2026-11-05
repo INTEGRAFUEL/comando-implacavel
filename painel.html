@@ -44,8 +44,10 @@ function tick(){const n=new Date();$('#clk').firstChild.textContent=n.toLocaleTi
  $('#dt').textContent=n.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
 setInterval(tick,1000);tick();
 $('#fs').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
-async function boot(){const{data:{session}}=await sb.auth.getSession();
- if(!session||session.user.id!==OWNER){if(session)await sb.auth.signOut({scope:'local'});$('#login').hidden=false;return}
+function showErr(m){$('#track').innerHTML=`<div class="empty" style="color:#f39c12">⚠️ ${esc(m)}<br><small>Tentando de novo em 90 s…</small></div>`;lastHtml='';$('#cnt').textContent='Erro ao carregar'}
+async function boot(){try{const{data:{session}}=await sb.auth.getSession();
+ let ok=session&&session.user?.id===OWNER;if(ok){const{data:u,error:ue}=await sb.auth.getUser();ok=!ue&&u?.user?.id===OWNER}
+ if(!ok){if(session)await sb.auth.signOut({scope:'local'}).catch(()=>{});started=false;$('#cnt').textContent='Entre com o código';$('#login').hidden=false;return}}catch(e){showErr('Falha de sessão: '+e.message);$('#login').hidden=false;return}
  $('#login').hidden=true;if(started)return;started=true;await load();setInterval(load,90000);
  rt=sb.channel('painel').on('postgres_changes',{event:'*',schema:'public',table:'cmd_items'},()=>load()).subscribe();requestAnimationFrame(step)}
 $('#lf').onsubmit=async e=>{e.preventDefault();const code=($('#lc').value||'').replace(/\D/g,'');if(!code)return $('#lmsg').textContent='Informe o código.';$('#lmsg').textContent='Entrando…';
@@ -59,8 +61,8 @@ function item(i,h){const P='P'+i.prioridade;let tg='';
  if(i.data&&i.data<h){const n=dias(i.data,h);tg=`<span class="tag late">ATRASADO ${n} DIA${n>1?'S':''}</span>`}else if(i.data===h)tg='<span class="tag hj">HOJE</span>';else if(i.data)tg=`<span class="tag">${fmtD(i.data)}</span>`;else tg='<span class="tag">SEM DATA</span>';
  return `<div class="it ${P}"><div class="hr">${i.hora?i.hora.slice(0,5):'--:--'}</div><div class="bd"><span class="tag t${P}">${P}</span>${tg}<span class="tag">${esc(CATS[i.categoria]||i.categoria)}</span>${i.status==='EM ANDAMENTO'?'<span class="tag">EM ANDAMENTO</span>':''}
  <div class="t">${esc(i.titulo)}</div>${i.proxima_acao?`<div class="m">➡️ ${esc(i.proxima_acao)}</div>`:''}${i.local?`<div class="m">📍 ${esc(i.local)}</div>`:''}</div></div>`}
-async function load(){const{data,error}=await sb.from('cmd_items').select('*').in('status',['ABERTO','EM ANDAMENTO']);
- if(error){$('#st').textContent='Erro ao atualizar: '+error.message;if(/JWT|auth/i.test(error.message))boot();return}
+async function load(){let data,error;try{({data,error}=await sb.from('cmd_items').select('*').in('status',['ABERTO','EM ANDAMENTO']))}catch(e){error=e}
+ if(error){const m=error.message||String(error);$('#st').textContent='Erro: '+m;if(/JWT|auth|token/i.test(m)){started=false;return boot()}if(!lastHtml)showErr('Erro ao carregar: '+m);return}
  const h=hoje(),o=(a,b)=>(a.data||'9999').localeCompare(b.data||'9999')||a.prioridade-b.prioridade||(a.hora||'99').localeCompare(b.hora||'99');
  const at=data.filter(i=>i.data&&i.data<h).sort(o),hj=data.filter(i=>i.data===h).sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99')||a.prioridade-b.prioridade),pr=data.filter(i=>!i.data||i.data>h).sort(o);
  const sec=(t,l)=>l.length?`<div class="sec">${t} (${l.length})</div>`+l.map(i=>item(i,h)).join(''):'';
