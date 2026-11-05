@@ -11,10 +11,17 @@ const aberto=i=>i.status==='ABERTO'||i.status==='EM ANDAMENTO';
 const late=i=>aberto(i)&&i.data&&i.data<hoje();
 const ord=(a,b)=>a.prioridade-b.prioridade||(a.data||'9999').localeCompare(b.data||'9999')||(a.hora||'99').localeCompare(b.hora||'99');
 const ordHora=(a,b)=>(a.hora||'99').localeCompare(b.hora||'99')||a.prioridade-b.prioridade;
+const APP_URL='https://integrafuel.github.io/comando-implacavel/';
+let recovering=false;
+function showOnly(which){['lf','rf','nf'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=id!==which});}
+async function enterApp(){$('#login').hidden=true;$('#app').hidden=false;await load()}
 async function boot(){const{data:{session}}=await sb.auth.getSession();if(!session)return showLogin();
  if(session.user.id!==OWNER){await sb.auth.signOut();return showLogin('Acesso restrito.')}
- $('#login').hidden=true;$('#app').hidden=false;await load()}
-function showLogin(msg){$('#app').hidden=true;$('#login').hidden=false;$('#lmsg').textContent=msg||''}
+ if(recovering)return showNewCode();
+ await enterApp()}
+function showLogin(msg){$('#app').hidden=true;$('#login').hidden=false;recovering=false;showOnly('lf');$('#lmsg').textContent=msg||'';$('#rmsg').textContent='';$('#nmsg').textContent=''}
+function showRecover(msg){$('#app').hidden=true;$('#login').hidden=false;showOnly('rf');$('#rmsg').textContent=msg||''}
+function showNewCode(msg){$('#app').hidden=true;$('#login').hidden=false;recovering=true;showOnly('nf');$('#nmsg').textContent=msg||'Defina um novo código numérico (4 a 12 dígitos).'}
 $('#lf').onsubmit=async e=>{e.preventDefault();const code=($('#lc').value||'').replace(/\D/g,'');if(!code)return $('#lmsg').textContent='Informe o código.';$('#lmsg').textContent='Entrando…';$('#lf button').disabled=true;
  try{const r=await fetch(SB_URL+'/functions/v1/cmd-code-login',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({code})});
   const j=await r.json().catch(()=>({}));
@@ -23,6 +30,26 @@ $('#lf').onsubmit=async e=>{e.preventDefault();const code=($('#lc').value||'').r
   const{error}=await sb.auth.verifyOtp({token_hash:j.token_hash,type:'email'});
   if(error){$('#lmsg').textContent='Falha ao entrar. Tente de novo.';return}
   $('#lc').value='';boot()}catch(err){$('#lmsg').textContent='Sem conexão. Tente de novo.'}finally{$('#lf button').disabled=false}};
+$('#forgot').onclick=()=>showRecover();
+$('#rback').onclick=()=>showLogin();
+$('#rf').onsubmit=async e=>{e.preventDefault();$('#rmsg').textContent='Enviando…';$('#rf button.pri').disabled=true;
+ try{const{error}=await sb.auth.resetPasswordForEmail('brianezi.heritage@gmail.com',{redirectTo:APP_URL});
+  if(error){$('#rmsg').textContent='Não foi possível enviar. Tente de novo.';return}
+  $('#rmsg').textContent='Link enviado para brianezi.heritage@gmail.com. Abra o e-mail e defina o novo código.'}catch(err){$('#rmsg').textContent='Sem conexão. Tente de novo.'}finally{$('#rf button.pri').disabled=false}};
+$('#nf').onsubmit=async e=>{e.preventDefault();const a=($('#nc').value||'').replace(/\D/g,''),b=($('#ncc').value||'').replace(/\D/g,'');
+ if(a.length<4||a.length>12)return $('#nmsg').textContent='Use de 4 a 12 dígitos.';
+ if(a!==b)return $('#nmsg').textContent='Os códigos não conferem.';
+ $('#nmsg').textContent='Salvando…';$('#nf button').disabled=true;
+ try{const{data:{session}}=await sb.auth.getSession();if(!session){showLogin('Sessão expirada. Peça um novo link.');return}
+  // Completa o fluxo de recovery do Auth com senha aleatória (não é o código do app).
+  const rnd=crypto.randomUUID()+crypto.randomUUID();
+  const{error:uErr}=await sb.auth.updateUser({password:rnd});
+  if(uErr){$('#nmsg').textContent='Falha ao confirmar. Peça um novo link.';return}
+  const{data:{session:s2}}=await sb.auth.getSession();
+  const r=await fetch(SB_URL+'/functions/v1/cmd-set-code',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+(s2||session).access_token},body:JSON.stringify({code:a})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){$('#nmsg').textContent=j.error||'Falha ao salvar código.';return}
+  $('#nc').value='';$('#ncc').value='';recovering=false;await enterApp()}catch(err){$('#nmsg').textContent='Sem conexão. Tente de novo.'}finally{$('#nf button').disabled=false}};
 $('#out').onclick=async()=>{await sb.auth.signOut();showLogin()};
 async function load(){const[a,b]=await Promise.all([sb.from('cmd_items').select('*'),sb.from('cmd_sugestoes').select('*').eq('status','pendente').order('created_at')]);
  if(a.error||b.error){alert('Erro ao carregar: '+(a.error||b.error).message);return}items=a.data;sugs=b.data;render()}
@@ -68,5 +95,17 @@ window.aprovar=id=>{const s=sugs.find(x=>x.id===id);form('Aprovar sugestão do R
  const{error}=await sb.from('cmd_items').insert({...norm(v),origem:'RADAR',sugestao_id:id,historico:H(null,'Aprovado da sugestão do '+s.origem)});if(error)return alert(error.message);
  await sb.from('cmd_sugestoes').update({status:'aprovada',decided_at:new Date().toISOString()}).eq('id',id);load()})};
 window.recusar=async id=>{if(!confirm('Recusar esta sugestão?'))return;await sb.from('cmd_sugestoes').update({status:'recusada',decided_at:new Date().toISOString()}).eq('id',id);load()};
-sb.auth.onAuthStateChange(e=>{if(e==='SIGNED_OUT')showLogin()});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');boot();
+sb.auth.onAuthStateChange(async(e,session)=>{
+ if(e==='SIGNED_OUT'){recovering=false;return showLogin()}
+ if(e==='PASSWORD_RECOVERY'){recovering=true;return showNewCode()}
+ if(e==='SIGNED_IN'&&session?.user?.id===OWNER&&recovering)return showNewCode();
+});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+(async()=>{
+ // Sessão de recovery que chega pela URL (hash/query) antes do listener.
+ const{data:{session}}=await sb.auth.getSession();
+ const hash=location.hash||'',q=location.search||'';
+ const looksRecovery=/type=recovery/i.test(hash+q)||/type=recovery/i.test(decodeURIComponent(hash+q));
+ if(looksRecovery&&session){recovering=true;history.replaceState(null,'',location.pathname);return showNewCode()}
+ boot();
+})();

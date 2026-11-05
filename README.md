@@ -4,7 +4,7 @@ Independente do OFFICIUM INEXORABILE (nenhum dado importado, nenhuma tabela anti
 
 ## Arquitetura
 - `src/app.html` + `src/app.js` + supabase-js UMD embutido → `python3 build.py` → `dist/index.html`. `dist/` = site publicado (manifest, sw.js, ícones).
-- Auth: tela pede **só o código numérico** do dono. Edge Function `cmd-code-login` confere SHA-256(salt+código) no servidor, aplica limite de tentativas (`cmd_login_attempts`) e libera sessão via `generateLink` + `verifyOtp`. Dono único: brianezi.heritage@gmail.com, uid `dd3e1b45-230a-48aa-8d7d-01df7cfe9d0a`. Outro uid → "Acesso restrito" + logout. Código de 6 dígitos é fraco em app público — por isso o limite de tentativas.
+- Auth: tela pede **só o código numérico** do dono. Edge Function `cmd-code-login` confere SHA-256(salt+código) contra `cmd_owner_code` (só service_role), aplica limite de tentativas (`cmd_login_attempts`) e libera sessão via `generateLink` + `verifyOtp`. Link **Esqueci a senha** manda e-mail de recovery; na volta o dono define um **novo código** via `cmd-set-code` (JWT do dono). Dono único: brianezi.heritage@gmail.com, uid `dd3e1b45-230a-48aa-8d7d-01df7cfe9d0a`. Outro uid → "Acesso restrito" + logout. Código curto é fraco em app público — por isso o limite de tentativas.
 - Tabelas: `cmd_items` (itens) e `cmd_sugestoes` (fila do RADAR). RLS ativa e FORÇADA; policy `FOR ALL TO authenticated` só com `auth.uid() = dd3e1b45-…`. `anon` sem nenhum GRANT.
 - Categorias (`categoria`): dia, fuel, air, b2b, pessoas, potenciais, rotas. Prioridade 1–4. Status: ABERTO, EM ANDAMENTO, CONCLUÍDO, CANCELADO.
 
