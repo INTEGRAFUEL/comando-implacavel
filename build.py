@@ -2,3 +2,5 @@
 import pathlib;d=pathlib.Path(__file__).parent
 h=(d/'src/app.html').read_text();v=(d/'src/supabase-js-2.117.2.umd.js').read_text();j=(d/'src/app.js').read_text()
 (d/'dist/index.html').write_text(h.replace('/*VENDOR*/',v).replace('/*JS*/',j.replace('</script','<\\/script')))
+p=(d/'src/painel.html').read_text();pj=(d/'src/painel.js').read_text()
+(d/'dist/painel.html').write_text(p.replace('/*VENDOR*/',v).replace('/*JS*/',pj.replace('</script','<\\/script')))
