@@ -16,7 +16,7 @@ let recovering=false;
 function showOnly(which){['lf','rf','nf'].forEach(id=>{const el=$('#'+id);if(el)el.hidden=id!==which});}
 async function enterApp(){$('#login').hidden=true;$('#app').hidden=false;await load()}
 async function boot(){const{data:{session}}=await sb.auth.getSession();if(!session)return showLogin();
- if(session.user.id!==OWNER){await sb.auth.signOut();return showLogin('Acesso restrito.')}
+ if(session.user.id!==OWNER){await sb.auth.signOut({scope:'local'});return showLogin('Acesso restrito.')}
  if(recovering)return showNewCode();
  await enterApp()}
 function showLogin(msg){$('#app').hidden=true;$('#login').hidden=false;recovering=false;showOnly('lf');$('#lmsg').textContent=msg||'';$('#rmsg').textContent='';$('#nmsg').textContent=''}
@@ -50,7 +50,7 @@ $('#nf').onsubmit=async e=>{e.preventDefault();const a=($('#nc').value||'').repl
   const j=await r.json().catch(()=>({}));
   if(!r.ok){$('#nmsg').textContent=j.error||'Falha ao salvar código.';return}
   $('#nc').value='';$('#ncc').value='';recovering=false;await enterApp()}catch(err){$('#nmsg').textContent='Sem conexão. Tente de novo.'}finally{$('#nf button').disabled=false}};
-$('#out').onclick=async()=>{await sb.auth.signOut();showLogin()};
+$('#out').onclick=async()=>{await sb.auth.signOut({scope:'local'});showLogin()};
 async function load(){const[a,b]=await Promise.all([sb.from('cmd_items').select('*'),sb.from('cmd_sugestoes').select('*').eq('status','pendente').order('created_at')]);
  if(a.error||b.error){alert('Erro ao carregar: '+(a.error||b.error).message);return}items=a.data;sugs=b.data;render()}
 function render(){const tabs=[['hoje','HOJE'],...Object.entries(CATS),['radar','Sugestões do RADAR'+(sugs.length?`<span class="badge">${sugs.length}</span>`:'')],['feitos','Concluídos']];

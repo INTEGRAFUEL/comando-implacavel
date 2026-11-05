@@ -11,7 +11,7 @@ function tick(){const n=new Date();$('#clk').firstChild.textContent=n.toLocaleTi
 setInterval(tick,1000);tick();
 $('#fs').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
 async function boot(){const{data:{session}}=await sb.auth.getSession();
- if(!session||session.user.id!==OWNER){if(session)await sb.auth.signOut();$('#login').hidden=false;return}
+ if(!session||session.user.id!==OWNER){if(session)await sb.auth.signOut({scope:'local'});$('#login').hidden=false;return}
  $('#login').hidden=true;if(started)return;started=true;await load();setInterval(load,90000);
  rt=sb.channel('painel').on('postgres_changes',{event:'*',schema:'public',table:'cmd_items'},()=>load()).subscribe();requestAnimationFrame(step)}
 $('#lf').onsubmit=async e=>{e.preventDefault();const code=($('#lc').value||'').replace(/\D/g,'');if(!code)return $('#lmsg').textContent='Informe o código.';$('#lmsg').textContent='Entrando…';
