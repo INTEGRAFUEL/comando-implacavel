@@ -18,6 +18,15 @@ h1{margin:0;font-size:34px;letter-spacing:1px}h1 small{display:block;font-size:2
 #login form{background:#161a24;padding:40px;border-radius:14px;text-align:center;width:380px}#login input{width:100%;font-size:28px;padding:12px;margin:16px 0;border-radius:8px;border:0;text-align:center;background:#232838;color:#fff}
 #login button{font-size:22px;padding:12px 26px;border:0;border-radius:8px;background:#c0392b;color:#fff;cursor:pointer}#lmsg{margin-top:12px;color:#f39c12;min-height:20px}
 #st{position:fixed;bottom:8px;right:14px;font-size:14px;color:#5d6577;z-index:3}
+
+body.c{background:radial-gradient(120% 80% at 20% 0%,#1b2a55 0%,#0a1230 55%,#060a1c 100%);font-family:Segoe UI,system-ui,Arial,sans-serif}
+body.c header{height:74px;padding:0 12px;background:rgba(8,14,40,.85);border-bottom:1px solid #d4a63a}
+body.c h1{font-size:15px;color:#f0c75e;letter-spacing:.5px}body.c h1 small{font-size:12px;color:#cfd6e6;margin-top:3px}
+body.c #clk{font-size:24px;color:#fff}body.c #dt{font-size:11px}body.c .tools{gap:4px;margin-right:8px}body.c .tools a,body.c .tools button{padding:4px 7px;font-size:12px;background:rgba(212,166,58,.15);border:1px solid #d4a63a;color:#f0c75e}
+body.c #vp{top:74px}body.c #track{padding:0 8px}body.c .sec{font-size:12px;margin:10px 0 5px;color:#f0c75e;letter-spacing:1px}
+body.c .it{gap:8px;padding:7px 9px;margin:0 0 6px;border-left-width:6px;border-radius:8px;background:rgba(20,30,70,.75);border-top:1px solid rgba(212,166,58,.25)}
+body.c .hr{min-width:44px;font-size:15px}body.c .t{font-size:15px}body.c .m{font-size:12px;margin-top:2px}body.c .tag{font-size:10px;padding:1px 5px;margin:0 3px 3px 0}
+body.c .empty{font-size:18px;margin-top:60px}body.c #login form{width:300px;padding:24px}body.c #login input{font-size:22px}body.c #st{font-size:10px}
 </style></head><body>
 <div id="login" hidden><form id="lf"><h2>COMANDO IMPLACÁVEL<br><small>Painel</small></h2><input id="lc" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Código de acesso"><button>Entrar</button><div id="lmsg"></div></form></div>
 <header><div><h1>COMANDO IMPLACÁVEL<small id="cnt">Carregando…</small></h1></div><div style="display:flex;align-items:center"><div class="tools"><button id="fs" title="Ou pressione F11">⛶ Tela cheia (F11)</button><a href="./">← Voltar ao app</a></div><div id="clk">--:--<div id="dt"></div></div></div></header>
@@ -39,9 +48,10 @@ const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>
 const hoje=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const dias=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
 const fmtD=d=>d.split('-').reverse().slice(0,2).join('/');
+const COMP=/compacto=1/.test(location.search);if(COMP){document.body.classList.add('c');document.title='COMANDO';$('#fs').hidden=true;$('header h1').firstChild.textContent='COMANDO IMPLACÁVEL'}
 let started=false,pos=0,paused=false,lastHtml='',rt=null;
-function tick(){const n=new Date();$('#clk').firstChild.textContent=n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
- $('#dt').textContent=n.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
+function tick(){const n=new Date();$('#clk').firstChild.textContent=n.toLocaleTimeString('pt-BR',COMP?{hour:'2-digit',minute:'2-digit'}:{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ $('#dt').textContent=n.toLocaleDateString('pt-BR',COMP?{weekday:'short',day:'2-digit',month:'2-digit'}:{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
 setInterval(tick,1000);tick();
 $('#fs').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
 function showErr(m){$('#track').innerHTML=`<div class="empty" style="color:#f39c12">⚠️ ${esc(m)}<br><small>Tentando de novo em 90 s…</small></div>`;lastHtml='';$('#cnt').textContent='Erro ao carregar'}
@@ -66,7 +76,7 @@ async function load(){let data,error;try{({data,error}=await sb.from('cmd_items'
  const h=hoje(),o=(a,b)=>(a.data||'9999').localeCompare(b.data||'9999')||a.prioridade-b.prioridade||(a.hora||'99').localeCompare(b.hora||'99');
  const at=data.filter(i=>i.data&&i.data<h).sort(o),hj=data.filter(i=>i.data===h).sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99')||a.prioridade-b.prioridade),pr=data.filter(i=>!i.data||i.data>h).sort(o);
  const sec=(t,l)=>l.length?`<div class="sec">${t} (${l.length})</div>`+l.map(i=>item(i,h)).join(''):'';
- $('#cnt').textContent=`${data.length} abertos · ${at.length} atrasados · ${hj.length} hoje`;
+ $('#cnt').textContent=COMP?`🔴 ${at.length} atras. · 📅 ${hj.length} hoje · ${data.length} abertos`:`${data.length} abertos · ${at.length} atrasados · ${hj.length} hoje`;
  $('#st').textContent='Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
  const html=data.length?`<div class="blk">${sec('⚠️ Atrasados',at)}${sec('📅 Hoje',hj)}${sec('🔜 Próximos',pr)}<div style="height:80px"></div></div>`:'<div class="empty">Nada pendente. Comando limpo. 💪</div>';
  if(html===lastHtml)return;lastHtml=html;const tr=$('#track');tr.innerHTML=html;
@@ -74,7 +84,7 @@ async function load(){let data,error;try{({data,error}=await sb.from('cmd_items'
  const bh=tr.querySelector('.blk')?.offsetHeight||1;pos=pos%bh}
 $('#vp').onmouseenter=()=>paused=true;$('#vp').onmouseleave=()=>paused=false;
 let lt=0;function step(t){const dt=lt?Math.min(t-lt,100):0;lt=t;const tr=$('#track'),blk=tr.querySelector('.blk');
- if(blk&&tr.children.length>1&&!paused){pos+=dt*0.04;const bh=blk.offsetHeight;if(pos>=bh)pos-=bh}
+ if(blk&&tr.children.length>1&&!paused){pos+=dt*(COMP?0.02:0.04);const bh=blk.offsetHeight;if(pos>=bh)pos-=bh}
  if(!(tr.children.length>1))pos=0;tr.style.transform=`translateY(${-pos}px)`;requestAnimationFrame(step)}
 boot();
 </script></body></html>
