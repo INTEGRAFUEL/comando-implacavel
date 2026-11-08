@@ -53,24 +53,49 @@ $('#nf').onsubmit=async e=>{e.preventDefault();const a=($('#nc').value||'').repl
 $('#out').onclick=async()=>{await sb.auth.signOut({scope:'local'});showLogin()};
 async function load(){const[a,b]=await Promise.all([sb.from('cmd_items').select('*'),sb.from('cmd_sugestoes').select('*').eq('status','pendente').order('created_at')]);
  if(a.error||b.error){alert('Erro ao carregar: '+(a.error||b.error).message);return}items=a.data;sugs=b.data;render()}
-function render(){const tabs=[['hoje','HOJE'],...Object.entries(CATS),['radar','Sugestões do RADAR'+(sugs.length?`<span class="badge">${sugs.length}</span>`:'')],['feitos','Concluídos']];
- $('#tabs').innerHTML=tabs.map(([k,v])=>`<button class="${k===tab?'on':''}" data-t="${k}">${v}</button>`).join('');
- document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
- let h='';if(tab==='hoje'){const l=items.filter(i=>aberto(i)&&i.data&&i.data<=hoje()).sort(ordHora),at=l.filter(late);
-  h=`<h2>Cronograma de ${fmtD(hoje())} — ${l.length} itens</h2>`+(at.length?`<div class="row"><button class="pri" onclick="reprogTodos(0)">Atrasados (${at.length}) → hoje</button><button onclick="reprogTodos(1)">Atrasados → amanhã</button></div>`:'')+(l.map(card).join('')||'<div class="empty">Nada para hoje. Comando limpo.</div>');
-  const sem=items.filter(i=>aberto(i)&&!i.data).sort(ord);if(sem.length)h+='<h2>Sem data</h2>'+sem.map(card).join('')}
- else if(tab==='radar'){h='<h2>Sugestões pendentes</h2>'+(sugs.map(scard).join('')||'<div class="empty">Nenhuma sugestão pendente.</div>')}
- else if(tab==='feitos'){h='<h2>Concluídos / cancelados</h2>'+items.filter(i=>!aberto(i)).sort((a,b)=>b.updated_at.localeCompare(a.updated_at)).slice(0,100).map(card).join('')}
- else{const l=items.filter(i=>i.categoria===tab&&aberto(i)).sort(ord);h=`<h2>${CATS[tab]}</h2>`+(l.map(card).join('')||'<div class="empty">Vazio.</div>')}
+function listas(){const h=hoje(),open=items.filter(aberto);
+ const agenda=open.filter(i=>i.data===h).sort(ordHora);
+ const emg=open.filter(i=>late(i)||i.prioridade===1).sort((a,b)=>(late(a)?0:1)-(late(b)?0:1)||ord(a,b));
+ const pen=open.filter(i=>i.data!==h&&!late(i)&&i.prioridade!==1).sort(ord);
+ const done=items.filter(i=>!aberto(i)).sort((a,b)=>b.updated_at.localeCompare(a.updated_at));
+ return {open,agenda,emg,pen,done}}
+function foco(k){if(k==='feitos'){tab='feitos';render();return}tab='hoje';render();
+ const id=k==='emg'?'sec-emg':k==='pen'?'sec-pen':'sec-agenda';document.getElementById(id)?.scrollIntoView({block:'start'})}
+function render(){const L=listas();
+ const tabs=[['hoje','HOJE'],...Object.entries(CATS),['radar','Sugestões do RADAR'+(sugs.length?`<span class="badge">${sugs.length}</span>`:'')],['feitos','Concluídos']];
+ $('#tabs').innerHTML=tabs.map(([k,v])=>`<button type="button" class="${k===tab?'on':''}" data-t="${k}">${v}</button>`).join('');
+ document.querySelectorAll('#tabs [data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+ const kpis=[['agenda','Agenda',L.agenda.length,''],['emg','Emergências',L.emg.length,L.emg.length?'hot':''],['pen','Pendências',L.open.length,''],['feitos','Concluídos',L.done.length,tab==='feitos'?'on':'']];
+ $('#kpis').innerHTML=kpis.map(([id,l,n,c])=>`<button type="button" class="kpi ${c}" data-foco="${id}"><b>${n}</b><span>${l}</span></button>`).join('');
+ document.querySelectorAll('[data-foco]').forEach(b=>b.onclick=()=>foco(b.dataset.foco));
+ const sec=(id,cls,title,count,note,body,head)=>`<section id="${id}" class="sec ${cls}"><div class="sechead"><h2>${title} <b>${count}</b></h2>${head||''}</div>${note?`<p class="note">${note}</p>`:''}${body}</section>`;
+ let h='';if(tab==='hoje'){const at=items.filter(late),p1hoje=L.agenda.filter(i=>i.prioridade===1).length;
+  const headAt=at.length?`<div class="row"><button type="button" class="pri" onclick="reprogTodos(0)">Atrasados (${at.length}) → hoje</button><button type="button" onclick="reprogTodos(1)">Atrasados → amanhã</button></div>`:'';
+  const emgNote=p1hoje?(p1hoje===1?'1 P1 de hoje também está na agenda.':p1hoje+' P1 de hoje também estão na agenda.'):'';
+  const shown=L.done.slice(0,4);
+  const doneNote=L.done.length>shown.length?`Mostrando ${shown.length} de ${L.done.length}, com cancelados. O filtro Concluídos abre a lista.`:'Com cancelados. O filtro Concluídos abre a lista.';
+  h=`<div class="board">`+
+   sec('sec-emg','emg','Emergências',L.emg.length,emgNote,L.emg.map(card).join('')||'<div class="empty">Nenhuma emergência.</div>',headAt)+
+   sec('sec-agenda','','Agenda de '+fmtD(hoje()),L.agenda.length,'',L.agenda.map(card).join('')||'<div class="empty">Nada na agenda de hoje.</div>')+
+   sec('sec-pen','','Pendências',L.pen.length,'Fora da agenda de hoje e das emergências. Em aberto no total: '+L.open.length+'.',L.pen.map(card).join('')||'<div class="empty">Nada além da agenda e das emergências.</div>')+
+   sec('sec-done','','Concluídos',L.done.length,doneNote,shown.map(card).join('')||'<div class="empty">Nenhum concluído.</div>')+
+   `</div>`}
+ else if(tab==='radar'){h=sec('sec-radar','','Sugestões pendentes',sugs.length,'',sugs.map(scard).join('')||'<div class="empty">Nenhuma sugestão pendente.</div>')}
+ else if(tab==='feitos'){const all=L.done,l=all.slice(0,100);h=sec('sec-feitos','','Concluídos e cancelados',l.length,all.length>100?'Mostrando 100 de '+all.length+'.':'',l.map(card).join('')||'<div class="empty">Nenhum concluído ou cancelado.</div>')}
+ else{const l=items.filter(i=>i.categoria===tab&&aberto(i)).sort(ord);h=sec('sec-cat','',esc(CATS[tab]),l.length,'',l.map(card).join('')||'<div class="empty">Nenhum item em aberto.</div>')}
  $('#main').innerHTML=h}
 function wa(t){const n=String(t||'').replace(/\D/g,'');return n?`https://wa.me/${n.length<=11?'55'+n:n}`:''}
-function card(i){const P='P'+i.prioridade;return `<div class="card ${P} ${late(i)?'late':''}"><div><span class="tag t${P}">${P}</span><span class="tag">${CATS[i.categoria]}</span>${late(i)?'<span class="tag tP1">ATRASADO</span>':''}${i.status!=='ABERTO'?`<span class="tag">${i.status}</span>`:''}</div>
- <div class="t">${esc(i.titulo)}</div><div class="m">${i.data?fmtD(i.data):'sem data'}${i.hora?' · '+i.hora.slice(0,5):''}${i.local?' · 📍'+esc(i.local):''}${i.valor!=null?' · R$ '+Number(i.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}):''}</div>
- ${i.descricao?`<div class="m">${esc(i.descricao)}</div>`:''}${i.proxima_acao?`<div class="m">➡️ ${esc(i.proxima_acao)}</div>`:''}
- ${i.contato_nome||i.contato_tel?`<div class="m">👤 ${esc(i.contato_nome)} ${i.contato_tel?`<a href="${wa(i.contato_tel)}" target="_blank" rel="noopener">WhatsApp ${esc(i.contato_tel)}</a>`:''}</div>`:''}
- <div class="row">${aberto(i)?`<button class="ok" onclick="concluir('${i.id}')">✓ Concluir</button><button onclick="reprog('${i.id}',1)">Amanhã</button><button onclick="reprog('${i.id}',2)">+2 dias</button><button onclick="reprogEsc('${i.id}')">📅 Data</button>`:''}<button onclick="editar('${i.id}')">Editar</button></div></div>`}
-function scard(s){const p=s.payload||{};return `<div class="card P${p.prioridade||3}"><div><span class="tag tP${p.prioridade||3}">P${p.prioridade||3}</span><span class="tag">${CATS[p.categoria]||'Dia a dia'}</span><span class="tag">${esc(s.origem)}</span></div><div class="t">${esc(p.titulo)}</div><div class="m">${p.data?fmtD(p.data):''} ${p.hora||''} ${esc(p.descricao||'')}</div>
- <div class="row"><button class="ok" onclick="aprovar('${s.id}')">Aprovar</button><button onclick="aprovar('${s.id}')">Editar</button><button class="bad" onclick="recusar('${s.id}')">Recusar</button></div></div>`}
+function card(i){const P='P'+i.prioridade,when=i.hora?i.hora.slice(0,5):(i.data?fmtD(i.data):'—');
+ const meta=[];if(i.data&&i.hora)meta.push(fmtD(i.data));if(!i.data)meta.push('sem data');if(i.local)meta.push(esc(i.local));
+ if(i.valor!=null)meta.push('R$ '+Number(i.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}));if(i.proxima_acao)meta.push(esc(i.proxima_acao));
+ return `<article class="card ${P}${late(i)?' late':''}${aberto(i)?'':' done'}"><div class="when">${when}</div><div class="bd"><div class="tline"><span class="tag t${P}">${P}</span><span class="tag">${esc(CATS[i.categoria]||'')}</span>${late(i)?'<span class="tag tP1">Atrasado</span>':''}${i.status!=='ABERTO'?`<span class="tag">${esc(i.status)}</span>`:''}<span class="t">${esc(i.titulo)}</span></div>
+ ${meta.length?`<div class="m">${meta.join(' · ')}</div>`:''}${i.descricao?`<div class="m">${esc(i.descricao)}</div>`:''}
+ ${i.contato_nome||i.contato_tel?`<div class="m">${esc(i.contato_nome||'')} ${i.contato_tel?`<a href="${wa(i.contato_tel)}" target="_blank" rel="noopener">WhatsApp ${esc(i.contato_tel)}</a>`:''}</div>`:''}</div>
+ <div class="row">${aberto(i)?`<button type="button" class="ok" onclick="concluir('${i.id}')">Concluir</button><button type="button" onclick="reprog('${i.id}',1)">Amanhã</button><button type="button" onclick="reprog('${i.id}',2)">+2 dias</button><button type="button" onclick="reprogEsc('${i.id}')">Data</button>`:''}<button type="button" onclick="editar('${i.id}')">Editar</button></div></article>`}
+function scard(s){const p=s.payload||{},pr=p.prioridade||3,P='P'+pr,when=p.hora?String(p.hora).slice(0,5):(p.data?fmtD(p.data):'—');
+ const meta=[p.data?fmtD(p.data):'',p.descricao?esc(p.descricao):'',p.local?esc(p.local):''].filter(Boolean);
+ return `<article class="card ${P}"><div class="when">${esc(when)}</div><div class="bd"><div class="tline"><span class="tag t${P}">${P}</span><span class="tag">${esc(CATS[p.categoria]||'Dia a dia')}</span><span class="tag">${esc(s.origem||'')}</span><span class="t">${esc(p.titulo)}</span></div>${meta.length?`<div class="m">${meta.join(' · ')}</div>`:''}</div>
+ <div class="row"><button type="button" class="ok" onclick="aprovar('${s.id}')">Aprovar</button><button type="button" onclick="aprovar('${s.id}')">Editar</button><button type="button" class="bad" onclick="recusar('${s.id}')">Recusar</button></div></article>`}
 const H=(i,txt)=>[...(i?.historico||[]),{em:new Date().toISOString(),txt}];
 async function upd(id,ch,txt){const i=items.find(x=>x.id===id);const{error}=await sb.from('cmd_items').update({...ch,historico:H(i,txt)}).eq('id',id);if(error)alert(error.message);await load()}
 window.concluir=id=>{const i=items.find(x=>x.id===id);if(confirm(`Concluir "${i.titulo}"?`))upd(id,{status:'CONCLUÍDO'},'Concluído')};
