@@ -2,7 +2,9 @@
 <title>COMANDO IMPLACÁVEL</title><meta name="theme-color" content="#0b0d10"><link rel="manifest" href="manifest.json"><link rel="icon" href="favicon-32.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="robots" content="noindex">
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#0b0d10;color:#e8eaed;font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:max(8px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom))}
+html,body{height:100%}
+body{margin:0;background:#0b0d10;color:#e8eaed;font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body:has(#app:not([hidden])){overflow:hidden}
 button{background:#1a1f26;color:#e8eaed;border:1px solid #2a313a;border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
 button.on{background:#f5b301;color:#000;border-color:#f5b301;font-weight:700}
 button.pri{background:#f5b301;color:#000;border-color:#f5b301;font-weight:700}
@@ -10,53 +12,70 @@ button.ok{background:#1f8f4e;border-color:#1f8f4e}
 button.bad{background:#8f1f1f;border-color:#8f1f1f}
 button.sm{padding:4px 9px;font-size:12px}
 button.ghost{background:transparent;color:#d5dbe3}
-button:focus-visible,a:focus-visible{outline:2px solid #f5b301;outline-offset:1px}
+button:focus-visible,a:focus-visible,.card:focus-visible{outline:2px solid #f5b301;outline-offset:1px}
 .vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 8px}
+#app{display:flex;flex-direction:column;height:100dvh;padding:max(8px,env(safe-area-inset-top)) 12px 8px}
+#app[hidden]{display:none !important}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:0 0 8px}
 button.kpi{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;background:#13171c;border:1px solid #243044;border-radius:8px;padding:6px 8px}
 button.kpi b{font-size:20px;line-height:1;font-variant-numeric:tabular-nums;font-weight:700}
 button.kpi span{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9aa4b0;font-weight:600}
 button.kpi.hot{border-color:#5a1d22}
 button.kpi.hot b{color:#ff8a80}
+button.kpi.opp{border-color:#6d28d9;background:#160f28}
+button.kpi.opp b,button.kpi.opp span{color:#e9d5ff}
 button.kpi.on{border-color:#f5b301}
 .tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px}
 .tabs{display:flex;gap:4px;overflow-x:auto;flex:1 1 220px;min-width:0;padding:0;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{flex:none;padding:4px 8px;font-size:12px}
-.util{display:flex;gap:4px;margin-left:auto}
+.util{display:flex;gap:4px;margin-left:auto;align-items:center}
+.rollst{font-size:11px;color:#8b95a1;min-width:48px}
+button#roll[aria-pressed="true"]{border-color:#f5b301;color:#f5b301}
 .badge{background:#e53935;color:#fff;border-radius:8px;padding:0 5px;font-size:11px;margin-left:4px}
-.board{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);gap:10px 14px;align-items:start}
-#sec-agenda{grid-column:1;grid-row:1}
-#sec-pen{grid-column:1;grid-row:2}
-#sec-emg{grid-column:2;grid-row:1}
-#sec-done{grid-column:2;grid-row:2}
-.sec{min-width:0;scroll-margin-top:8px;container-type:inline-size}
-@container (max-width:560px){
-  .card{grid-template-columns:42px minmax(0,1fr);align-items:start}
-  .row{grid-column:1/-1;justify-content:flex-start}
-}
+#stage{flex:1;min-height:0;overflow:hidden;position:relative}
+#track{will-change:transform}
+.blk{position:relative}
+.sec{min-width:0;padding:2px 0 8px}
+.sec.radar{background:#160f28;border:1px solid #6d28d988;border-radius:8px;padding:8px;margin:6px 0 10px}
 .sechead{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin:0 0 4px}
 .sec h2{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9aa4b0;margin:0}
 .sec h2 b{color:#e8eaed;font-size:13px;letter-spacing:0;font-variant-numeric:tabular-nums}
 .sec.emg h2{color:#ffb4ae}
+.sec.radar h2,.sec.radar h2 b{color:#e9d5ff}
 .note{margin:0 0 6px;font-size:11px;color:#8b95a1}
-.card{display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:1px 8px;align-items:center;background:#13171c;border:1px solid #222830;border-left:3px solid #555;border-radius:6px;padding:5px 8px;margin:0 0 4px}
+.sec.radar .note{color:#d8b4fe}
+.card{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:1px 8px;align-items:center;background:#13171c;border:1px solid #222830;border-left:3px solid #555;border-radius:6px;padding:6px 8px;margin:0 0 4px;cursor:pointer;text-align:left;width:100%}
+.card:hover{border-color:#3d4856}
 .P1{border-left-color:#e53935}.P2{border-left-color:#fb8c00}.P3{border-left-color:#fdd835}.P4{border-left-color:#43a047}
 .late{background:#2a1214;border-top-color:#5a1d22;border-right-color:#5a1d22;border-bottom-color:#5a1d22}
 .done{opacity:.78}
-.when{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:#f5b301;padding-top:1px}
+.card.radar,.card.radar.P1,.card.radar.P2,.card.radar.P3,.card.radar.P4{background:#1b1233;border-color:#5b2d91;border-left-color:#c084fc}
+.card.radar:hover{border-color:#c084fc}
+.card.radar .when{color:#e9d5ff}
+.when{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:#f5b301;padding-top:1px}
 .bd{min-width:0}
 .tline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px;min-width:0}
-.t{font-weight:700;font-size:13.5px;line-height:1.25}
+.t{font-weight:700;font-size:15px;line-height:1.25}
 .m{color:#9aa4b0;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.abrir{font-size:11px;color:#8b95a1;padding-right:2px}
+.card.radar .abrir{color:#d8b4fe}
 .row{display:flex;gap:4px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
 .row button{padding:3px 7px;font-size:11px;border-radius:6px;line-height:1.2}
+.acts{justify-content:flex-start;margin-top:10px}
 .tag{display:inline-block;font-size:10px;font-weight:700;border-radius:4px;padding:0 4px;background:#222;letter-spacing:.02em}
 .tP1{background:#e53935}.tP2{background:#fb8c00;color:#000}.tP3{background:#fdd835;color:#000}.tP4{background:#43a047}
+.tag.opp{background:#7c3aed;color:#fff}
 .empty{color:#6b7480;font-size:12px;padding:2px 0 6px}
-dialog{background:#13171c;color:#e8eaed;border:1px solid #2a313a;border-radius:10px;width:min(520px,94vw);max-height:90vh;overflow:auto;padding:12px 14px}
+dialog{background:#13171c;color:#e8eaed;border:1px solid #2a313a;border-radius:10px;width:min(560px,94vw);max-height:90vh;overflow:auto;padding:12px 14px}
 dialog::backdrop{background:#000c}
-dialog h2{font-size:15px;margin:0 0 8px;color:#e8eaed;letter-spacing:0;text-transform:none}
+dialog h2{font-size:18px;margin:0 0 8px;color:#e8eaed;letter-spacing:0;text-transform:none}
+.kicker{margin:0 0 2px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9aa4b0;font-weight:700}
+.radarnote{background:#2a1848;border:1px solid #c084fc;color:#f5edff;border-radius:6px;padding:8px 10px;font-size:13px;margin:0 0 8px}
+.kvgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:8px 0}
+.kv{min-width:0}
+.kv span{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8b95a1}
+.kv b{font-weight:600;font-size:13px}
 label{display:block;font-size:12px;color:#9aa4b0;margin-top:6px}
 input,select,textarea{width:100%;background:#0b0d10;color:#e8eaed;border:1px solid #2a313a;border-radius:6px;padding:7px;font:inherit}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -67,19 +86,18 @@ input,select,textarea{width:100%;background:#0b0d10;color:#e8eaed;border:1px sol
 #login button.pri{padding:10px 12px}
 .mote{font-size:11px;color:#f5b301;font-weight:700;letter-spacing:1px}
 a{color:#4fc3f7}
-@media(max-width:860px){
-  .board{grid-template-columns:1fr}
-  #sec-agenda,#sec-pen,#sec-emg,#sec-done{grid-column:auto;grid-row:auto}
-}
 @media(max-width:700px){
-  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  button.kpi{padding:5px 6px}
   button.kpi b{font-size:18px}
   .tabs{flex:1 1 100%}
   .util{margin-left:auto}
   .row button,.tabs button,.util button{min-height:32px}
-  .g2{grid-template-columns:1fr}
+  .kvgrid,.g2{grid-template-columns:1fr}
   input,select,textarea{font-size:16px}
+  .t{font-size:14px}
 }
+@media(prefers-reduced-motion:reduce){#track{will-change:auto}}
 </style></head><body>
 <div id="login" hidden><img src="icon-192.png" alt=""><h1>COMANDO IMPLACÁVEL</h1><div class="mote">NÃO PERCA A DIREÇÃO</div><div class="mote">SEJA IMPLACÁVEL</div>
 <form id="lf"><label>Código de acesso</label><input id="lc" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="12" required placeholder="só números"><p><button class="pri" style="width:100%">Entrar</button></p><div id="lmsg" class="m"></div></form>
@@ -89,8 +107,8 @@ a{color:#4fc3f7}
 <div id="app" hidden>
 <h1 class="vh">COMANDO IMPLACÁVEL</h1>
 <div class="kpis" id="kpis"></div>
-<div class="tools"><nav class="tabs" id="tabs" aria-label="Filtros"></nav><div class="util"><button type="button" id="add" class="pri sm">Novo</button><button type="button" id="out" class="ghost sm">Sair</button></div></div>
-<main id="main"></main></div>
+<div class="tools"><nav class="tabs" id="tabs" aria-label="Filtros"></nav><div class="util"><button type="button" id="roll" class="ghost sm" aria-pressed="false">Pausar</button><span id="rollst" class="rollst">rolando</span><button type="button" id="add" class="pri sm">Novo</button><button type="button" id="out" class="ghost sm">Sair</button></div></div>
+<div id="stage"><div id="track"><main id="main"></main></div></div></div>
 <dialog id="dlg"><form id="f" method="dialog"></form></dialog>
 <script>/*VENDOR*/</script>
 <script>/*JS*/</script></body></html>
